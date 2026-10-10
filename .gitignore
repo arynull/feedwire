@@ -1,0 +1,18 @@
+# feedwire
+feed.db
+*.db
+*.db-journal
+*.db-wal
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# editor / os
+.vscode/
+.idea/
+.DS_Store

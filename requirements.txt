@@ -1,0 +1,6 @@
+# feedwire uses the Python standard library ONLY - no pip installs required.
+#
+# Modules used: urllib, xml.etree, sqlite3, argparse, json (plus os, sys).
+# Python 3.8+.
+#
+# This file is intentionally empty of dependencies.
