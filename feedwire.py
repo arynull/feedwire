@@ -14,7 +14,10 @@ import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feed.db")
+DB_PATH = os.environ.get(
+    "FEEDWIRE_DB",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "feed.db"),
+)
 USER_AGENT = "feedwire/1.0 (+stdlib)"
 TIMEOUT = 20
 
@@ -126,12 +129,12 @@ def cmd_add(conn, args):
     try:
         data, _ = fetch(url)
     except Exception:
-        print("ERROR bad feed: %s" % args.url)
+        print(f"ERROR bad feed: {args.url}")
         return 2
     try:
         items = parse_feed(data)
     except ET.ParseError:
-        print("ERROR bad feed: %s" % args.url)
+        print(f"ERROR bad feed: {args.url}")
         return 2
 
     name = args.name or url
@@ -142,21 +145,23 @@ def cmd_add(conn, args):
         )
         conn.commit()
     except sqlite3.IntegrityError:
-        print("ERROR feed already exists: %s" % args.url)
+        print(f"ERROR feed already exists: {args.url}")
         return 1
-    print("added feed #%d: %s (%d item(s) pending)" % (cur.lastrowid, name, len(items)))
+    print(f"added feed #{cur.lastrowid}: {name} ({len(items)} item(s) pending)")
     return 0
 
 
 def cmd_list(conn, args):
-    rows = conn.execute("SELECT id, url, name, last_guid FROM feeds ORDER BY id").fetchall()
+    rows = conn.execute(
+        "SELECT id, url, name, last_guid FROM feeds ORDER BY id"
+    ).fetchall()
     if not rows:
         print("no feeds configured")
         return 0
-    print("%-4s %-24s %s" % ("ID", "NAME", "URL"))
+    print(f"{'ID':<4} {'NAME':<24} {'URL'}")
     for row in rows:
-        print("%-4d %-24s %s" % (row["id"], row["name"] or "", row["url"]))
-    print("\n%d feed(s)" % len(rows))
+        print(f"{row['id']:<4} {row['name'] or '':<24} {row['url']}")
+    print(f"\n{len(rows)} feed(s)")
     return 0
 
 
@@ -164,14 +169,16 @@ def cmd_remove(conn, args):
     cur = conn.execute("DELETE FROM feeds WHERE id = ?", (args.id,))
     conn.commit()
     if cur.rowcount == 0:
-        print("ERROR no feed with id %d" % args.id)
+        print(f"ERROR no feed with id {args.id}")
         return 1
-    print("removed feed #%d" % args.id)
+    print(f"removed feed #{args.id}")
     return 0
 
 
 def cmd_check(conn, args):
-    rows = conn.execute("SELECT id, url, name, last_guid FROM feeds ORDER BY id").fetchall()
+    rows = conn.execute(
+        "SELECT id, url, name, last_guid FROM feeds ORDER BY id"
+    ).fetchall()
     if not rows:
         print("no feeds configured")
         return 0
@@ -183,15 +190,15 @@ def cmd_check(conn, args):
             data, _ = fetch(row["url"])
             items = parse_feed(data)
         except (urllib.error.URLError, OSError) as exc:
-            print("ERROR fetch failed %s (%s)" % (row["url"], exc))
+            print(f"ERROR fetch failed {row['url']} ({exc})")
             continue
         except ET.ParseError:
-            print("ERROR fetch failed %s (invalid feed)" % row["url"])
+            print(f"ERROR fetch failed {row['url']} (invalid feed)")
             continue
 
         fresh = new_items(items, row["last_guid"])
         for item in reversed(fresh):
-            print("[NEW] %s :: %s :: %s" % (name, item["title"], item["link"]))
+            print(f"[NEW] {name} :: {item['title']} :: {item['link']}")
         total_new += len(fresh)
 
         if items:
@@ -201,7 +208,7 @@ def cmd_check(conn, args):
             )
             conn.commit()
 
-    print("%d new item(s)" % total_new)
+    print(f"{total_new} new item(s)")
     return 0
 
 
@@ -211,7 +218,9 @@ def cmd_check(conn, args):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="feedwire",
-        description="RSS/Atom feed tracker for Telegram/Discord forwarding (stdlib only).",
+        description=(
+            "RSS/Atom feed tracker for Telegram/Discord forwarding (stdlib only)."
+        ),
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -231,7 +240,9 @@ def build_parser():
     p_check.set_defaults(func=cmd_check)
 
     p_run = sub.add_parser("run", help="run the forwarder loop")
-    p_run.add_argument("--once", action="store_true", help="run a single check and exit")
+    p_run.add_argument(
+        "--once", action="store_true", help="run a single check and exit"
+    )
     p_run.set_defaults(func=cmd_check)
 
     return parser

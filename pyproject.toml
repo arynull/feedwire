@@ -1,0 +1,17 @@
+[project]
+name = "feedwire"
+version = "0.1.0"
+description = "RSS/Atom to Telegram/Discord forwarder core (Python stdlib only)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.8"
+dependencies = []
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["feedwire"]
