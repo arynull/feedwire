@@ -186,6 +186,7 @@ def cmd_remove(conn, args):
 
 
 def cmd_check(conn, args):
+    limit = getattr(args, "limit", None)
     rows = conn.execute(
         "SELECT id, url, name, last_guid FROM feeds ORDER BY id"
     ).fetchall()
@@ -194,6 +195,7 @@ def cmd_check(conn, args):
         return 0
 
     total_new = 0
+    printed = 0
     for row in rows:
         name = row["name"] or row["url"]
         try:
@@ -208,7 +210,10 @@ def cmd_check(conn, args):
 
         fresh = new_items(items, row["last_guid"])
         for item in reversed(fresh):
+            if limit is not None and printed >= limit:
+                break
             print(f"[NEW] {name} :: {item['title']} :: {item['link']}")
+            printed += 1
         total_new += len(fresh)
 
         if items:
@@ -225,6 +230,21 @@ def cmd_check(conn, args):
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
+def positive_int(value):
+    """argparse type: accept only integers > 0, else exit with status 2."""
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid positive int value: {value!r}"
+        ) from None
+    if number <= 0:
+        raise argparse.ArgumentTypeError(
+            f"invalid positive int value: {value!r} (must be > 0)"
+        )
+    return number
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="feedwire",
@@ -247,6 +267,13 @@ def build_parser():
     p_remove.set_defaults(func=cmd_remove)
 
     p_check = sub.add_parser("check", help="fetch all feeds and print new items")
+    p_check.add_argument(
+        "--limit",
+        type=positive_int,
+        default=None,
+        metavar="N",
+        help="print at most N new items (default: all)",
+    )
     p_check.set_defaults(func=cmd_check)
 
     p_run = sub.add_parser("run", help="run the forwarder loop")

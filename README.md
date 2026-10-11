@@ -46,6 +46,9 @@ python3 feedwire.py remove 1
 # Fetch everything and print new items
 python3 feedwire.py check
 
+# Print at most the 5 newest new items (default: all)
+python3 feedwire.py check --limit 5
+
 # Single-shot run (same as check, exits 0) — use from cron / a bot loop
 python3 feedwire.py run --once
 ```
@@ -57,7 +60,7 @@ python3 feedwire.py run --once
 | `add <rss-url> [name]` | Add an RSS/Atom feed (URL, `file://`, or local path). | `0` ok, `2` bad feed/unreachable, `1` duplicate |
 | `list` | List configured feeds and their ids. | `0` (including "no feeds configured") |
 | `remove <id>` | Remove the feed with the given id. | `0` ok, `1` unknown id |
-| `check` | Fetch all feeds; print new items since `last_guid`; update state. | `0` (network failures are reported and skipped) |
+| `check [--limit N]` | Fetch all feeds; print new items since `last_guid`; update state. `--limit N` prints at most `N` items. | `0` (network failures are reported and skipped), `2` bad `--limit` |
 | `run --once` | Same as `check`, single shot. | `0` |
 | `--help` | Show usage. | `0` |
 
@@ -70,5 +73,8 @@ python3 feedwire.py run --once
 - **Newest-first assumption:** feeds are read newest first (standard for RSS and
   Atom). New items are those appearing before the stored `last_guid`. If the
   stored guid is no longer present (feed rotated), all items are treated as new.
+- **Capping output:** `check --limit N` prints at most `N` `[NEW]` lines across
+  all feeds; `N` must be a positive integer or the command exits `2`. State is
+  still updated as usual, so de-duplication is unchanged.
 - **Local testing:** `add` accepts `file://` URLs and plain filesystem paths,
   which is handy for offline testing.
