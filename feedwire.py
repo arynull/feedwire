@@ -12,7 +12,10 @@ import sqlite3
 import sys
 import urllib.error
 import urllib.request
-import xml.etree.ElementTree as ET
+
+# ElementTree is used together with an explicit inline-DTD/ENTITY guard in
+# parse_feed(); the stdlib-only constraint forbids defusedxml.
+import xml.etree.ElementTree as ET  # nosec B405
 
 DB_PATH = os.environ.get(
     "FEEDWIRE_DB",
@@ -66,7 +69,9 @@ def normalize_url(raw):
 def fetch(url):
     """Fetch the raw bytes of a feed. Raises on any failure."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+    # file:// URLs via normalize_url are an intentional feature for local
+    # fixtures; the scheme is otherwise constrained by normalize_url.
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:  # nosec B310
         return resp.read(), resp.geturl()
 
 
@@ -98,7 +103,12 @@ def _link(node):
 
 def parse_feed(data):
     """Parse RSS or Atom bytes into an ordered list of {guid, title, link}."""
-    root = ET.fromstring(data)
+    probe = (
+        data.lower() if isinstance(data, (bytes, bytearray)) else data.lower().encode()
+    )
+    if b"<!doctype" in probe or b"<!entity" in probe:
+        raise ValueError("feed rejected: inline DTD/ENTITY not allowed")
+    root = ET.fromstring(data)  # nosec B314
     items = []
     nodes = [n for n in root.iter() if _localname(n.tag) in ("item", "entry")]
     for node in nodes:
@@ -133,7 +143,7 @@ def cmd_add(conn, args):
         return 2
     try:
         items = parse_feed(data)
-    except ET.ParseError:
+    except (ET.ParseError, ValueError):
         print(f"ERROR bad feed: {args.url}")
         return 2
 
@@ -192,7 +202,7 @@ def cmd_check(conn, args):
         except (urllib.error.URLError, OSError) as exc:
             print(f"ERROR fetch failed {row['url']} ({exc})")
             continue
-        except ET.ParseError:
+        except (ET.ParseError, ValueError):
             print(f"ERROR fetch failed {row['url']} (invalid feed)")
             continue
 
